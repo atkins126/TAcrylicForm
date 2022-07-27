@@ -14,6 +14,8 @@ uses
   AcrylicControlU;
 
   function  BoolToInt(a_bBool : Boolean) : Integer;
+  function  ToAlphaColor(a_clColor : TColor) : TAlphaColor;
+  function  ToColor(a_clColor : TAlphaColor) : TColor;
   function  GdiColor(a_clColor : TAlphaColor) : Cardinal; overload;
   function  GdiColor(a_clColor : TColor) : Cardinal; overload;
   function  GdiColor(a_clColor : TColor; a_nAlpha : Byte) : Cardinal; overload;
@@ -24,6 +26,11 @@ uses
                            a_byteBlue  : SmallInt = 0) : Cardinal;
 
   procedure RefreshAcrylicControls(Parent: TWinControl);
+  function  SupportBlur: Boolean;
+
+var
+  // Blur state can be accessed globally via this variable
+  g_bWithBlur : Boolean = False;
 
 implementation
 
@@ -34,6 +41,23 @@ begin
     Result := 1
   else
     Result := 0;
+end;
+
+//==============================================================================
+function ToAlphaColor(a_clColor : TColor) : TAlphaColor;
+begin
+  Result := MakeColor(255,
+                      GetRed  (a_clColor),
+                      GetGreen(a_clColor),
+                      GetBlue (a_clColor));
+end;
+
+//==============================================================================
+function ToColor(a_clColor : TAlphaColor) : TColor;
+begin
+  Result := RGB(GetRed  (a_clColor),
+                GetGreen(a_clColor),
+                GetBlue (a_clColor));
 end;
 
 //==============================================================================
@@ -92,6 +116,12 @@ begin
     if Child is TWinControl then
       RefreshAcrylicControls(TWinControl(Child));
   end;
+end;
+
+//==============================================================================
+function SupportBlur: Boolean;
+begin
+  Result := TOSVersion.Name = 'Windows 10';
 end;
 
 end.

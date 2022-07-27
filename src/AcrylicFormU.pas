@@ -9,6 +9,7 @@ uses
   System.Variants,
   System.Classes,
   System.Types,
+  System.UITypes,
   Vcl.Graphics,
   Vcl.Controls,
   Vcl.Forms,
@@ -39,14 +40,21 @@ type
     procedure imgMinimizeMouseLeave(Sender: TObject);
     procedure imgCloseClick        (Sender: TObject);
 
+    procedure WMEraseBkgnd(var Message: TWmEraseBkgnd); message WM_ERASEBKGND;
 
   private
     m_bInitialized  : Boolean;
-    m_clFormColor   : TColor;
-    m_clBorderColor : TColor;
+    m_clBlurColor   : TColor;
+    m_clBackColor   : TColor;
+    m_clBorderColor : TAlphaColor;
     m_btBlurAmount  : Byte;
     m_bResizable    : Boolean;
     m_bWithBorder   : Boolean;
+
+    m_nMinHeight    : Integer;
+    m_nMinWidth     : Integer;
+    m_nMaxHeight    : Integer;
+    m_nMaxWidth     : Integer;
 
     m_pngCloseN     : TPngImage;
     m_pngCloseH     : TPngImage;
@@ -64,21 +72,34 @@ type
     procedure OnAcrylicTimer(Sender: TObject);
     procedure SetColor      (a_clColor : TColor);
     procedure SetBlurAmount (a_btAmount : Byte);
+    procedure ToggleBlur    (a_bBlur : Boolean);
+
+    function  GetWithBlur : Boolean;
+
+    procedure PaintBackground;
     procedure PaintBorder;
 
-    procedure WMNCMoving (var Msg: TWMMoving);    message WM_MOVING;
-    procedure WMNCSize   (var Msg: TWMSize);      message WM_SIZE;
-    procedure WMNCHitTest(var Msg: TWMNCHitTest); message WM_NCHITTEST;
+    procedure WMNCMoving     (var Msg: TWMMoving);        message WM_MOVING;
+    procedure WMNCSize       (var Msg: TWMSize);          message WM_SIZE;
+    procedure WMNCHitTest    (var Msg: TWMNCHitTest);     message WM_NCHITTEST;
+    procedure WMGetMinMaxInfo(var Msg: TWMGetMinMaxInfo); message WM_GETMINMAXINFO;
 
   public
     constructor Create(AOwner : TComponent); override;
     destructor  Destroy; override;
 
-    property WithBorder  : Boolean read m_bWithBorder   write m_bWithBorder;
-    property BorderColor : TColor  read m_clBorderColor write m_clBorderColor;
-    property Color       : TColor  read m_clFormColor   write SetColor;
-    property BlurAmount  : Byte    read m_btBlurAmount  write SetBlurAmount;
-    property Resizable   : Boolean read m_bResizable    write m_bResizable;
+    property WithBlur    : Boolean     read GetWithBlur     write ToggleBlur;
+    property WithBorder  : Boolean     read m_bWithBorder   write m_bWithBorder;
+    property BorderColor : TAlphaColor read m_clBorderColor write m_clBorderColor;
+    property BackColor   : TColor      read m_clBackColor   write m_clBackColor;
+    property BlurColor   : TColor      read m_clBlurColor   write SetColor;
+    property BlurAmount  : Byte        read m_btBlurAmount  write SetBlurAmount;
+    property Resizable   : Boolean     read m_bResizable    write m_bResizable;
+    property MinWidth    : Integer     read m_nMinWidth     write m_nMinWidth;
+    property MinHeight   : Integer     read m_nMinHeight    write m_nMinHeight;
+    property MaxWidth    : Integer     read m_nMaxWidth     write m_nMaxWidth;
+    property MaxHeight   : Integer     read m_nMaxHeight    write m_nMaxHeight;
+
   end;
 
   AccentPolicy = packed record
@@ -113,7 +134,8 @@ uses
   GDIPAPI,
   GDIPUTIL,
   GDIPOBJ,
-  AcrylicUtilsU;
+  AcrylicUtilsU,
+  AcrylicTypesU;
 
 {$R *.dfm}
 
@@ -123,6 +145,11 @@ begin
   RegisterComponents('AcrylicComponents', [TAcrylicForm]);
 end;
 
+//==============================================================================
+procedure TAcrylicForm.WMEraseBkgnd(var Message: TWmEraseBkgnd);
+begin
+  //
+end;
 
 //==============================================================================
 procedure TAcrylicForm.OnAcrylicTimer(Sender: TObject);
@@ -139,7 +166,7 @@ end;
 //==============================================================================
 procedure TAcrylicForm.SetColor(a_clColor : TColor);
 begin
-  m_clFormColor := a_clColor;
+  m_clBlurColor := a_clColor;
   EnableBlur(Handle, 4);
 end;
 
@@ -148,6 +175,23 @@ procedure TAcrylicForm.SetBlurAmount(a_btAmount : Byte);
 begin
   m_btBlurAmount := a_btAmount;
   EnableBlur(Handle, 4);
+end;
+
+//==============================================================================
+procedure TAcrylicForm.ToggleBlur(a_bBlur : Boolean);
+begin
+  g_bWithBlur := a_bBlur and SupportBlur;
+
+  EnableBlur(Handle, 4);
+  Invalidate;
+
+  RefreshAcrylicControls(Self);
+end;
+
+//==============================================================================
+function TAcrylicForm.GetWithBlur : Boolean;
+begin
+  Result := g_bWithBlur;
 end;
 
 //==============================================================================
@@ -169,6 +213,7 @@ end;
 constructor TAcrylicForm.Create(AOwner : TComponent);
 begin
   m_bInitialized := False;
+  g_bWithBlur    := SupportBlur;
 
   m_tmrAcrylicChange          := TTimer.Create(self);
   m_tmrAcrylicChange.Interval := 10;
@@ -182,12 +227,19 @@ begin
   m_pngMinimizeN  := TPngImage.Create;
   m_pngMinimizeH  := TPngImage.Create;
 
-  m_clFormColor   := $202020;
-  m_clBorderColor := $FFFFFF;
-  m_btBlurAmount  := 180;
+  m_clBlurColor   := c_clFormBlur;
+  m_clBorderColor := c_clFormBorder;
+  m_clBackColor   := c_clFormBack;
+  m_btBlurAmount  := c_nDefaultBlur;
 
   m_bResizable    := True;
   m_bWithBorder   := True;
+
+  m_nMinHeight    := 1;
+  m_nMinWidth     := 1;
+
+  m_nMaxHeight    := -1;
+  m_nMaxWidth     := -1;
 
   try
     m_pngCloseN.LoadFromResourceName   (HInstance, 'close_normal');
@@ -236,13 +288,43 @@ begin
   except
   end;
 
+  if WithBlur then
+  begin
+    GlassFrame.Enabled      := True;
+    GlassFrame.SheetOfGlass := True;
+
+    GlassFrame.Left   := -1;
+    GlassFrame.Right  := -1;
+    GlassFrame.Top    := -1;
+    GlassFrame.Bottom := -1;
+  end;
+
   m_bInitialized := True;
 end;
 
 //==============================================================================
 procedure TAcrylicForm.FormPaint(Sender: TObject);
 begin
+  PaintBackground;
   PaintBorder;
+end;
+
+//==============================================================================
+procedure TAcrylicForm.PaintBackground;
+var
+  gdiGraphics   : TGPGraphics;
+  gdiSolidBrush : TGPSolidBrush;
+begin
+  if not WithBlur then
+  begin
+    gdiGraphics   := TGPGraphics.Create(Canvas.Handle);
+    gdiSolidBrush := TGPSolidBrush.Create(GdiColor(m_clBackColor));
+
+    gdiGraphics.FillRectangle(gdiSolidBrush, 1, 1, ClientWidth - 1, ClientHeight - 1);
+
+    gdiGraphics.Free;
+    gdiSolidBrush.Free;
+  end;
 end;
 
 //==============================================================================
@@ -266,6 +348,11 @@ end;
 //==============================================================================
 procedure TAcrylicForm.UpdatePositions;
 begin
+  pnlBackground.Left    := 1;
+  pnlBackground.Top     := 1;
+  pnlBackground.Width   := ClientWidth  - 2;
+  pnlBackground.Height  := ClientHeight - 2;
+
   pnlContent.Left    := c_nBorderTriggerSize;
   pnlContent.Top     := pnlTitleBar.Height;
   pnlContent.Width   := ClientWidth  - 2 * c_nBorderTriggerSize;
@@ -290,14 +377,19 @@ end;
 //==============================================================================
 procedure TAcrylicForm.EnableBlur(hwndHandle: HWND; nMode: Integer);
 const
-  WCA_ACCENT_POLICY               = 19;
-  ACCENT_ENABLE_BLURBEHIND        = 3;
-  ACCENT_ENABLE_ACRYLICBLURBEHIND = 4;
+  WCA_ACCENT_POLICY                 = 19;
+  ACCENT_ENABLE_GRADIENT            = 1;
+  ACCENT_ENABLE_TRANSPARENTGRADIENT = 2;
+  ACCENT_ENABLE_BLURBEHIND          = 3;
+  ACCENT_ENABLE_ACRYLICBLURBEHIND   = 4;
 var
   DWM10      : THandle;
   Data       : WindowCompositionAttributeData;
   Accent     : AccentPolicy;
 begin
+  if not WithBlur then
+    nMode := 1;
+
   DWM10 := LoadLibrary('user32.dll');
 
   try
@@ -306,7 +398,7 @@ begin
     begin
       Accent.AccentState   := nMode;
       Accent.AccentFlags   := 2;
-      Accent.GradientColor := (m_btBlurAmount SHL 24) or m_clFormColor;
+      Accent.GradientColor := (m_btBlurAmount SHL 24) or m_clBlurColor;
 
       Data.Attribute  := WCA_ACCENT_POLICY;
       Data.SizeOfData := SizeOf(Accent);
@@ -434,6 +526,28 @@ begin
 
   m_tmrAcrylicChange.Enabled := False;
   m_tmrAcrylicChange.Enabled := True;
+end;
+
+//==============================================================================
+procedure TAcrylicForm.WMGetMinMaxInfo(var Msg: TWMGetMinMaxInfo);
+{sets Size-limits for the Form}
+var
+  MinMaxInfo : PMinMaxInfo;
+begin
+  inherited;
+  MinMaxInfo := Msg.MinMaxInfo;
+
+  if m_nMaxWidth > 0 then
+    MinMaxInfo^.ptMaxTrackSize.X := m_nMaxWidth;
+
+  if m_nMaxHeight > 0 then
+    MinMaxInfo^.ptMaxTrackSize.Y := m_nMaxHeight;
+
+  if m_nMinWidth > 0 then
+    MinMaxInfo^.ptMinTrackSize.X := m_nMinWidth;
+
+  if m_nMinHeight > 0 then
+    MinMaxInfo^.ptMinTrackSize.Y := m_nMinHeight;
 end;
 
 //==============================================================================

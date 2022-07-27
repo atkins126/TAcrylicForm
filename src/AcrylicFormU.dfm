@@ -2,43 +2,39 @@ object AcrylicForm: TAcrylicForm
   Left = 0
   Top = 0
   BorderStyle = bsNone
-  Caption = 'Form1'
+  Caption = 'AcrylicForm'
   ClientHeight = 519
   ClientWidth = 617
   Color = clCream
-  CustomTitleBar.Height = -1
+  TransparentColorValue = clPurple
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
-  GlassFrame.Enabled = True
-  GlassFrame.Left = -1
-  GlassFrame.Top = -1
-  GlassFrame.Right = -1
-  GlassFrame.Bottom = -1
-  GlassFrame.SheetOfGlass = True
   OldCreateOrder = False
   OnCreate = FormCreate
   OnPaint = FormPaint
   PixelsPerInch = 96
   TextHeight = 13
   object pnlBackground: TAcrylicGhostPanel
-    Left = 0
-    Top = 0
-    Width = 617
-    Height = 519
-    Align = alClient
+    Left = 1
+    Top = 1
+    Width = 615
+    Height = 517
     BevelOuter = bvNone
+    Color = 2039583
     TabOrder = 0
     object pnlTitleBar: TAcrylicGhostPanel
       Left = 0
       Top = 0
-      Width = 617
+      Width = 615
       Height = 41
       Align = alTop
       BevelOuter = bvNone
+      Color = 2039583
       TabOrder = 0
+      ExplicitWidth = 617
       object imgClose: TImage
         Left = 571
         Top = -1
@@ -68,15 +64,13 @@ object AcrylicForm: TAcrylicForm
     object pnlContent: TPanel
       Left = 0
       Top = 41
-      Width = 617
-      Height = 478
+      Width = 615
+      Height = 476
       Align = alClient
       BevelOuter = bvNone
       TabOrder = 1
-      ExplicitLeft = 1
-      ExplicitTop = 42
-      ExplicitWidth = 615
-      ExplicitHeight = 476
+      ExplicitWidth = 617
+      ExplicitHeight = 478
     end
   end
 end

@@ -96,11 +96,14 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="src\AcrylicControlU.pas"/>
         <DCCReference Include="src\AcrylicGhostPanelU.pas"/>
+        <DCCReference Include="src\AcrylicFrameU.pas"/>
+        <DCCReference Include="src\AcrylicScrollBoxU.pas"/>
         <DCCReference Include="src\AcrylicTypesU.pas"/>
         <DCCReference Include="src\AcrylicUtilsU.pas"/>
         <DCCReference Include="src\AcrylicButtonU.pas"/>
         <DCCReference Include="src\AcrylicLabelU.pas"/>
         <DCCReference Include="src\AcrylicTrackU.pas"/>
+        <DCCReference Include="src\AcrylicKnobU.pas"/>
         <DCCReference Include="src\AcrylicFormU.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>

@@ -35,11 +35,14 @@ requires
 contains
   AcrylicControlU in 'src\AcrylicControlU.pas',
   AcrylicGhostPanelU in 'src\AcrylicGhostPanelU.pas',
+  AcrylicFrameU in 'src\AcrylicFrameU.pas',
+  AcrylicScrollBoxU in 'src\AcrylicScrollBoxU.pas',
   AcrylicTypesU in 'src\AcrylicTypesU.pas',
   AcrylicUtilsU in 'src\AcrylicUtilsU.pas',
   AcrylicButtonU in 'src\AcrylicButtonU.pas',
   AcrylicLabelU in 'src\AcrylicLabelU.pas',
   AcrylicTrackU in 'src\AcrylicTrackU.pas',
+  AcrylicKnobU in 'src\AcrylicKnobU.pas',
   AcrylicFormU in 'src\AcrylicFormU.pas';
 
 end.
