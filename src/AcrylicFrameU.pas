@@ -21,13 +21,17 @@ uses
   GDIPOBJ,
   GDIPAPI,
   GDIPUTIL,
-  AcrylicGhostPanelU;
+  AcrylicGhostPanelU,
+  AcrylicControlU,
+  AcrylicLabelU;
 
 type
 
   TAcrylicFrame = Class(TFrame)
     imgClose: TImage;
     pnlTitle: TAcrylicGhostPanel;
+    lblTitle: TAcrylicLabel;
+    pnlBack : TAcrylicGhostPanel;
 
     procedure imgCloseMouseEnter   (Sender: TObject);
     procedure imgCloseMouseLeave   (Sender: TObject);
@@ -39,9 +43,8 @@ type
     m_bWithBorder   : Boolean;
     m_bColored      : Boolean;
     m_bIntersecting : Boolean;
-    m_clBorderColor : TAlphaColor;
-    m_clColor       : TAlphaColor;
     m_clBackColor   : TColor;
+    m_strTitle      : String;
 
     m_LastX         : Integer;
     m_LastY         : Integer;
@@ -60,6 +63,7 @@ type
     procedure WMWINDOWPOSChanging(Var Msg: TWMWINDOWPOSChanging); message WM_WINDOWPOSChanging;
 
     procedure UpdatePositions;
+    procedure SetTitle(a_strTitle : String);
 
   protected
     //
@@ -73,9 +77,9 @@ type
     property Canvas      : TCanvas     read m_Canvas        write m_Canvas;
     property WithBorder  : Boolean     read m_bWithBorder   write m_bWithBorder;
     property Colored     : Boolean     read m_bColored      write m_bColored;
-    property BorderColor : TAlphaColor read m_clBorderColor write m_clBorderColor;
     property BackColor   : TColor      read m_clBackColor   write m_clBackColor;
-    property Color       : TAlphaColor read m_clColor       write m_clColor;
+    property Resisable   : Boolean     read m_bResizable    write m_bResizable;
+    property Title       : String      read m_strTitle      write SetTitle;
 
     property Visible;
   end;
@@ -110,22 +114,25 @@ begin
   m_Canvas     := TCanvas.Create;
   m_bResizable := True;
 
-  m_bWithBorder   := True;
-  m_bColored      := True;
-  m_clBorderColor := c_clFormBorder;
-  m_clBackColor   := c_clFormBack;
-  m_clColor       := c_clFormColor;
+  m_bWithBorder := True;
+  m_bColored    := True;
+  m_clBackColor := c_clFormBack;
 
-  m_pnlBody         := TAcrylicghostPanel.Create(Self);
-  m_pnlBody.Parent  := Self;
+  m_pnlBody         := TAcrylicghostPanel.Create(pnlBack);
+  m_pnlBody.Parent  := pnlBack;
   m_pnlBody.Ghost   := True;
   m_pnlBody.Colored := True;
   m_pnlBody.Color   := c_clFormColor;
+
+  pnlBack.Colored     := False;
+  pnlBack.WithBorder  := True;
+  pnlBack.Bordercolor := c_clFormBorder;
 
   m_LastX         := 0;
   m_LastY         := 0;
   m_LastWidth     := 1;
   m_LastHeight    := 1;
+  m_strTitle      := '';
 
   m_bIntersecting := True;
 
@@ -142,6 +149,7 @@ begin
   end;
 end;
 
+//==============================================================================
 destructor TAcrylicFrame.Destroy;
 begin
   m_pngCloseN.Free;
@@ -159,56 +167,13 @@ end;
 
 //==============================================================================
 procedure TAcrylicFrame.WMPaint(var Msg: TWMPaint);
-var
-  gdiGraphics : TGPGraphics;
-  gdiBrush    : TGPSolidBrush;
-  gdiPen      : TGPPen;
-  bmpPaint    : TBitmap;
 begin
-  Inherited;
-
-  Canvas.Handle := GetDC(Handle);
-  //////////////////////////////////////////////////////////////////////////////
-  ///  Clear Background
-  bmpPaint := TBitmap.Create;
-  bmpPaint.SetSize(ClientWidth, ClientHeight);
-
-  if g_bWithBlur
-    then bmpPaint.Canvas.Brush.Color := c_clTransparent
-    else bmpPaint.Canvas.Brush.Color := m_clBackColor;
-
-  bmpPaint.Canvas.Pen.Color := bmpPaint.Canvas.Brush.Color;
-  bmpPaint.Canvas.Rectangle(0, 0, ClientWidth, ClientHeight);
-
-  //////////////////////////////////////////////////////////////////////////////
-  ///  Paint ScrollBar
-  gdiGraphics := TGPGraphics.Create(bmpPaint.Canvas.Handle);
-  gdiBrush    := TGPSolidBrush.Create(GdiColor(m_clColor));
-
-  if m_bColored then
-    gdiGraphics.FillRectangle(gdiBrush, 1, 1, ClientWidth - 2, ClientHeight - 2);
-
-  if m_bWithBorder then
-  begin
-    gdiPen := TGPPen.Create(GdiColor(m_clBorderColor), 1);
-    gdiGraphics.DrawRectangle(gdiPen, 0, 0, ClientWidth - 1, ClientHeight - 1);
-    gdiPen.Free;
-  end;
-
-  Canvas.Draw(0, 0, bmpPaint);
-  ReleaseDC(Handle, Canvas.Handle);
-
-  bmpPaint.Free;
-
-  gdiGraphics.Free;
-  gdiBrush.Free;
+  PaintHandler(Msg);
 end;
 
 //==============================================================================
 procedure TAcrylicFrame.WMNCSize(var Msg: TWMSize);
 begin
-  inherited;
-
   BringToFront;
   UpdatePositions;
 end;
@@ -223,7 +188,7 @@ var
 begin
   nBorder := BorderWidth + 2;
   ScreenPt := ScreenToClient(Point(Msg.Xpos, Msg.Ypos));
-  inherited;
+  Inherited;
 
   Msg.Result := HTCLIENT;
 
@@ -332,12 +297,17 @@ begin
     end;
   end;
 
-  inherited;
+  Inherited;
 end;
 
 //==============================================================================
 procedure TAcrylicFrame.UpdatePositions;
 begin
+  pnlBack.Left      := 0;
+  pnlBack.Top       := 0;
+  pnlBack.Width     := ClientWidth;
+  pnlBack.Height    := ClientHeight;
+
   m_pnlBody.Left    := c_nBorderTriggerSize;
   m_pnlBody.Top     := c_nTitleBarHeight;
   m_pnlBody.Width   := ClientWidth  - 2 * c_nBorderTriggerSize;
@@ -352,7 +322,15 @@ begin
   imgClose.Left     := pnlTitle.Width - c_nTopIconWidth;
   imgClose.Top      := 0;
 
-  Invalidate;
+  lblTitle.Width    := imgClose.Left - 5;
+end;
+
+//==============================================================================
+procedure TAcrylicFrame.SetTitle(a_strTitle : String);
+begin
+  m_strTitle := a_strTitle;
+
+  lblTitle.Text := m_strTitle;
 end;
 
 //==============================================================================

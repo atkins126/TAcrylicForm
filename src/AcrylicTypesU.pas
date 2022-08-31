@@ -9,7 +9,7 @@ const
   // Default colors:
   c_clCtrlFont     = $FFFFFFFF;
   c_clCtrlMisc     = $FFFFFFFF;
-  c_clCtrlBack     = $640F0F0F;
+  c_clCtrlColor    = $640F0F0F;
   c_clCtrlBorder   = $34777777;
   c_clCtrlDisabled = $A0252525;
 
@@ -33,6 +33,10 @@ type
   TAlignment  = (aCenter,
                  aLeft,
                  aRight);
+
+  TAcrylicFormStyle  = set of (fsClose,
+                               fsMinimize,
+                               fsMaximize);
 
   TIntArray = Array of Integer;
   PIntArray = ^TIntArray;
