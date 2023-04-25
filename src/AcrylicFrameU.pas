@@ -28,10 +28,11 @@ uses
 type
 
   TAcrylicFrame = Class(TFrame)
-    imgClose: TImage;
-    pnlTitle: TAcrylicGhostPanel;
-    lblTitle: TAcrylicLabel;
-    pnlBack : TAcrylicGhostPanel;
+    imgClose      : TImage;
+    pnlTitle      : TAcrylicGhostPanel;
+    lblTitle      : TAcrylicLabel;
+    pnlBack       : TAcrylicGhostPanel;
+    imgCloseHover : TImage;
 
     procedure imgCloseMouseEnter   (Sender: TObject);
     procedure imgCloseMouseLeave   (Sender: TObject);
@@ -51,8 +52,10 @@ type
     m_LastWidth     : Integer;
     m_LastHeight    : Integer;
 
-    m_pngCloseN     : TPngImage;
-    m_pngCloseH     : TPngImage;
+    m_nMinHeight    : Integer;
+    m_nMinWidth     : Integer;
+    m_nMaxHeight    : Integer;
+    m_nMaxWidth     : Integer;
 
     m_pnlBody       : TAcrylicGhostPanel;
 
@@ -61,6 +64,7 @@ type
     procedure WMNCHitTest        (var Msg: TWMNCHitTest);         message WM_NCHITTEST;
     procedure WMPaint            (var Msg: TWMPaint);             message WM_PAINT;
     procedure WMWINDOWPOSChanging(Var Msg: TWMWINDOWPOSChanging); message WM_WINDOWPOSChanging;
+    procedure WMGetMinMaxInfo    (var Msg: TWMGetMinMaxInfo);     message WM_GETMINMAXINFO;
 
     procedure UpdatePositions;
     procedure SetTitle(a_strTitle : String);
@@ -80,6 +84,11 @@ type
     property BackColor   : TColor      read m_clBackColor   write m_clBackColor;
     property Resisable   : Boolean     read m_bResizable    write m_bResizable;
     property Title       : String      read m_strTitle      write SetTitle;
+
+    property MinWidth    : Integer     read m_nMinWidth     write m_nMinWidth;
+    property MinHeight   : Integer     read m_nMinHeight    write m_nMinHeight;
+    property MaxWidth    : Integer     read m_nMaxWidth     write m_nMaxWidth;
+    property MaxHeight   : Integer     read m_nMaxHeight    write m_nMaxHeight;
 
     property Visible;
   end;
@@ -112,8 +121,6 @@ constructor TAcrylicFrame.Create(AOwner : TComponent);
 begin
   Inherited;
 
-  Visible := False;
-
   m_Canvas     := TCanvas.Create;
   m_bResizable := True;
 
@@ -124,12 +131,18 @@ begin
   m_pnlBody         := TAcrylicghostPanel.Create(pnlBack);
   m_pnlBody.Parent  := pnlBack;
   m_pnlBody.Ghost   := True;
-  m_pnlBody.Colored := True;
-  m_pnlBody.Color   := c_clFormColor;
+  m_pnlBody.Colored := False;
 
-  pnlBack.Colored     := False;
+  pnlBack.Colored     := True;
+  pnlBack.Color       := c_clFormColor;
   pnlBack.WithBorder  := True;
-  pnlBack.Bordercolor := c_clFormBorder;
+  pnlBack.Bordercolor := c_clFrameBorder;
+
+  pnlTitle.Colored    := True;
+  pnlTitle.Color      := c_clFormColor;
+
+  lblTitle.Color          := c_clFormColor;
+  lblTitle.WithBackground := True;
 
   m_LastX         := 0;
   m_LastY         := 0;
@@ -137,27 +150,17 @@ begin
   m_LastHeight    := 1;
   m_strTitle      := '';
 
+  m_nMinHeight    := 100;
+  m_nMinWidth     := 100;
+  m_nMaxHeight    := -1;
+  m_nMaxWidth     := -1;
+
   m_bIntersecting := True;
-
-  m_pngCloseN     := TPngImage.Create;
-  m_pngCloseH     := TPngImage.Create;
-
-  try
-    m_pngCloseN.LoadFromResourceName(HInstance, 'close_normal_mini');
-    m_pngCloseH.LoadFromResourceName(HInstance, 'close_hover_mini');
-
-    imgClose.Picture.Graphic := m_pngCloseN;
-  except
-
-  end;
 end;
 
 //==============================================================================
 destructor TAcrylicFrame.Destroy;
 begin
-  m_pngCloseN.Free;
-  m_pngCloseH.Free;
-
   m_Canvas.Free;
   Inherited;
 end;
@@ -170,8 +173,11 @@ end;
 
 //==============================================================================
 procedure TAcrylicFrame.WMPaint(var Msg: TWMPaint);
+var
+  PS : TPaintStruct;
 begin
-  PaintHandler(Msg);
+  BeginPaint(Handle, PS);
+  EndPaint(Handle, PS);
 end;
 
 //==============================================================================
@@ -261,7 +267,7 @@ begin
 
         ////////////////////////////////////////////////////////////////////////
         ///  Check if intersects other frames
-        for nIndex := 0 to pnlParent.ComponentCount - 1 do
+        for nIndex := 0 to pnlParent.ControlCount - 1 do
         begin
           if pnlParent.Controls[nIndex] is TAcrylicFrame then
           begin
@@ -332,10 +338,15 @@ begin
   pnlTitle.Top      := 1;
   pnlTitle.Width    := Width - 2;
 
-  imgClose.Width    := c_nTopIconWidth;
-  imgClose.Height   := c_nTopIconHeight;
-  imgClose.Left     := pnlTitle.Width - c_nTopIconWidth;
-  imgClose.Top      := 0;
+  imgClose.Width       := c_nTopIconWidth;
+  imgClose.Height      := c_nTopIconHeight;
+  imgClose.Left        := pnlTitle.Width - c_nTopIconWidth;
+  imgClose.Top         := 0;
+
+  imgCloseHover.Width  := c_nTopIconWidth;
+  imgCloseHover.Height := c_nTopIconHeight;
+  imgCloseHover.Left   := pnlTitle.Width - c_nTopIconWidth;
+  imgCloseHover.Top    := 0;
 
   lblTitle.Width    := imgClose.Left - 5;
 end;
@@ -357,13 +368,36 @@ end;
 //==============================================================================
 procedure TAcrylicFrame.imgCloseMouseEnter(Sender: TObject);
 begin
-  imgClose.Picture.Graphic := m_pngCloseH;
+  imgClose.Visible      := False;
+  imgCloseHover.Visible := True;
 end;
 
 //==============================================================================
 procedure TAcrylicFrame.imgCloseMouseLeave(Sender: TObject);
 begin
-  imgClose.Picture.Graphic := m_pngCloseN;
+  imgClose.Visible      := True;
+  imgCloseHover.Visible := False;
+end;
+
+//==============================================================================
+procedure TAcrylicFrame.WMGetMinMaxInfo(var Msg: TWMGetMinMaxInfo);
+var
+  MinMaxInfo : PMinMaxInfo;
+begin
+  inherited;
+  MinMaxInfo := Msg.MinMaxInfo;
+
+  if m_nMaxWidth > 0 then
+    MinMaxInfo^.ptMaxTrackSize.X := m_nMaxWidth;
+
+  if m_nMaxHeight > 0 then
+    MinMaxInfo^.ptMaxTrackSize.Y := m_nMaxHeight;
+
+  if m_nMinWidth > 0 then
+    MinMaxInfo^.ptMinTrackSize.X := m_nMinWidth;
+
+  if m_nMinHeight > 0 then
+    MinMaxInfo^.ptMinTrackSize.Y := m_nMinHeight;
 end;
 
 end.

@@ -24,6 +24,11 @@ uses
                            a_byteRed   : SmallInt = 0;
                            a_byteGreen : SmallInt = 0;
                            a_byteBlue  : SmallInt = 0) : Cardinal;
+  function  ChangeColor(a_clColor   : TAlphaColor;
+                        a_byteAlpha : SmallInt = 0;
+                        a_byteRed   : SmallInt = 0;
+                        a_byteGreen : SmallInt = 0;
+                        a_byteBlue  : SmallInt = 0) : TAlphaColor;
 
   procedure RefreshAcrylicControls(Parent: TWinControl);
   function  SupportBlur: Boolean;
@@ -101,6 +106,19 @@ begin
 end;
 
 //==============================================================================
+function ChangeColor(a_clColor   : TAlphaColor;
+                     a_byteAlpha : SmallInt = 0;
+                     a_byteRed   : SmallInt = 0;
+                     a_byteGreen : SmallInt = 0;
+                     a_byteBlue  : SmallInt = 0) : TAlphaColor;
+begin
+  Result := MakeColor(Min(Max(GetAlpha(a_clColor) + a_byteAlpha, 0), 255),
+                      Min(Max(GetRed  (a_clColor) + a_byteRed,   0), 255),
+                      Min(Max(GetGreen(a_clColor) + a_byteGreen, 0), 255),
+                      Min(Max(GetBlue (a_clColor) + a_byteBlue,  0), 255));
+end;
+
+//==============================================================================
 procedure RefreshAcrylicControls(Parent: TWinControl);
 var
   nIndex: Integer;
@@ -121,7 +139,7 @@ end;
 //==============================================================================
 function SupportBlur: Boolean;
 begin
-  Result := TOSVersion.Name = 'Windows 10';
+  Result := (TOSVersion.Name = 'Windows 10') or (TOSVersion.Name = 'Windows 11');
 end;
 
 end.
